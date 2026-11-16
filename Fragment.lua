@@ -68590,12 +68590,26 @@ for _, gui in ipairs(PlayerGui:GetChildren()) do
 end
 
 local ENV = (getgenv and getgenv()) or _G
-local ScriptEnv = (getfenv and getfenv()) or _G
-local Toggles = ENV.Toggles or ScriptEnv.Toggles or _G.Toggles or Toggles
-local Options = ENV.Options or ScriptEnv.Options or _G.Options or Options
+local ScriptEnv = (getfenv and getfenv(directEntry)) or ((getfenv and getfenv()) or _G)
+local Toggles = ScriptEnv.Toggles or ENV.Toggles or _G.Toggles or Toggles
+local Options = ScriptEnv.Options or ENV.Options or _G.Options or Options
 
 if type(Toggles) ~= "table" then
-    warn("[Fragment UI] Toggles were not found. Run the main Fragment script first.")
+    -- The original loader can publish its controls slightly after its entry
+    -- function returns. Check its own function environment before giving up.
+    for _ = 1, 50 do
+        task.wait(0.1)
+        ScriptEnv = (getfenv and getfenv(directEntry)) or ScriptEnv
+        Toggles = ScriptEnv.Toggles or ENV.Toggles or _G.Toggles or Toggles
+        Options = ScriptEnv.Options or ENV.Options or _G.Options or Options
+        if type(Toggles) == "table" then
+            break
+        end
+    end
+end
+
+if type(Toggles) ~= "table" then
+    warn("[Fragment UI] Could not access the feature controls in the loader environment.")
     return
 end
 
